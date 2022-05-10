@@ -1,8 +1,7 @@
 run_HashSolo <- function(raw_counts = NULL,
                         whitelist = NULL,
                         out_name = "HashSolo.csv.gz",
-                        whitelist_rm = "-1",
-                        thread = 4) {
+                        whitelist_rm = "-1") {
   com1 <- paste0(
     "conda run -n base39_0322 ",
     "python ",
