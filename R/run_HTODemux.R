@@ -3,7 +3,8 @@ run_HTODemux <- function(raw_counts = NULL,
                          whitelist = NULL,
                          whitelist_rm = "-1$",
                          threshold = 100,
-                         out_name = "HTODemux.csv.gz") {
+                         out_name = "HTODemux.csv.gz",
+                         use_mod = F) {
   # get counts
   if (!is.null(whitelist)) {
     whitelist <- readr::read_lines(whitelist)
@@ -38,7 +39,11 @@ run_HTODemux <- function(raw_counts = NULL,
   counts <- counts[rowSums(counts) >= threshold,]
   so <- Seurat::CreateSeuratObject(counts = t(as.matrix(counts)), assay="HTO")
   so <- Seurat::NormalizeData(so, normalization.method = "CLR")
-  so <- Seurat::HTODemux(so)
+  if (use_mod) {
+    so <- HTODemux_mod(so)
+  } else {
+    so <- Seurat::HTODemux(so)
+  }
   
   # results out
   HTO_results <- so@meta.data %>% 
