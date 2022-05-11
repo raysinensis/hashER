@@ -4,6 +4,8 @@ import pegasus as pg
 import anndata
 import pegasusio as io
 from itertools import compress
+import pandas as pd
+import re
 
 def version():
     print("0.0.1")
@@ -27,7 +29,10 @@ def main():
     res_path = args.out
     nthread = args.thread
     nmin = args.min
-    dat = io.read_input(drop_path)
+    if (drop_path.lower().endswith(".h5")):
+        dat = io.read_input(drop_path)
+    else:
+        dat = anndata.read_csv(drop_path)
     hash = io.MultimodalData(anndata.read_csv(hto_path))
     demuxEM.estimate_background_probs(hash)
     demuxEM.demultiplex(dat, hash, min_signal=10.0, alpha=0.0, alpha_noise=1.0, tol=1e-06, n_threads=nthread)

@@ -10,6 +10,7 @@ run_HashSolo <- function(raw_counts = NULL,
     raw_counts,
     " -o ",
     out_name)
+  
   if (!is.null(whitelist)) {
     com1 <- paste0(
       com1,

@@ -4,48 +4,44 @@ library(here)
 library(cowplot)
 list.files("/nfs/home/rfu/projects/hashER/R/", full.names = TRUE) %>% map(., source)
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "A17k"
+sample <- "hash18"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
+rr <- here(data_dir, sample, "RNA_counts.csv.gz")
 wl <- here(data_dir, sample, "barcodes.tsv.gz")
 ```
 
 ```{r}
-res <- run_HTODemux(
+run_HTODemux(
   raw_counts = rc,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/HTODemux.csv.gz")
 )
 
-res2 <- run_HTODemux_Libnorm(
+run_HTODemux_Libnorm(
   raw_counts = rc,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/HTODemux_Libnorm.csv.gz")
 )
 
-# res3 <- run_HTODemux_Birch(
-#   raw_counts = rc,
-#   whitelist = wl,
-#   out_name = here(data_dir, sample, "results/HTODemux_Birch.csv.gz")
-# )
-
-res4 <- run_HTODemux_Birch(
+run_HTODemux_Birch(
   raw_counts = rc,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/HTODemux_GMM.csv.gz"),
   kfunc = "gmm"
 )
 
-res5 <- run_HTODemux_Libnorm_sub(
-  raw_counts = rc,
-  whitelist = wl,
-  out_name = here(data_dir, sample, "results/HTODemux_subnorm.csv.gz"),
-  threshold = 5
-)
+# run_HTODemux_Libnorm_sub(
+#   raw_counts = rc,
+#   whitelist = wl,
+#   out_name = here(data_dir, sample, "results/HTODemux_subnorm.csv.gz"),
+#   threshold = 5
+# )
 
 run_demuxEM(
   raw_counts = rc,
-  raw_h5 = rh,
+  raw_h5 = rr,
+  whitelist = wl,
   out_name = here(data_dir, sample, "results/demuxEM.csv.gz")
 )
 

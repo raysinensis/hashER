@@ -8,14 +8,20 @@ run_demuxEM <- function(raw_counts = NULL,
     "conda run -n base39_0322 ",
     "python ",
     "/nfs/home/rfu/projects/hashER/py/run_demuxEM.py",
-    " -d ",
-    raw_h5,
     " -c ",
     raw_counts,
     " -o ",
     out_name,
     " -t ",
     thread)
+  
+  if (!is.null(raw_h5)) {
+    com1 <- paste0(
+      com1,
+      " -d ",
+      raw_h5
+    )
+  }
   
   if (!is.null(whitelist)) {
     com1 <- paste0(
