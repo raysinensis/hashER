@@ -32,6 +32,7 @@ def main():
     if args.remove is not None:
         whitelist_rm = args.remove
         bc = [re.sub(whitelist_rm, "", x) for x in bc]
+    bc = [x for x in bc if x in hash.obs_names.tolist()]
     hash.obs[["negative_hypothesis_probability","singlet_hypothesis_probability","doublet_hypothesis_probability", "Classification"]].loc[bc,].to_csv(res_path)
 
 if __name__ == '__main__': main()

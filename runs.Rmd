@@ -1,17 +1,17 @@
-```{r}
+```{r prep}
 library(tidyverse)
 library(here)
 library(cowplot)
 list.files("/nfs/home/rfu/projects/hashER/R/", full.names = TRUE) %>% map(., source)
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "hash18"
+sample <- "A45k"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
 wl <- here(data_dir, sample, "barcodes.tsv.gz")
 ```
 
-```{r}
+```{r run}
 run_HTODemux(
   raw_counts = rc,
   whitelist = wl,
@@ -40,7 +40,7 @@ run_HTODemux_Birch(
 
 run_demuxEM(
   raw_counts = rc,
-  raw_h5 = rr,
+  raw_h5 = rh,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/demuxEM.csv.gz")
 )
@@ -53,30 +53,110 @@ run_HashSolo(
 ```
 
 
-```{r}
+```{r so}
 so <- readRDS(here(data_dir, sample, "so.rds"))
 
 resall <- map(
   c(
     "HTODemux",
     "HTODemux_Libnorm",
-    "HTODemux_GMM",
-    "demuxEM",
-    "HashSolo"
+    "demuxEM"#,
+    #"HashSolo"
   ),
   function(.x) {
-    # read_csv(here(data_dir, sample,
-    #               "results",
-    #               paste0(.x, ".csv.gz"))) %>%
-    #   column_to_rownames("id") %>%
-    #   #.[Cells(so), ] %>%
-    #   select(global, local) %>%
-    parse_results(here(data_dir, sample, "results", paste0(.x, ".csv.gz")),
-                  whitelist = Cells(so)) %>% 
+    parse_results(here(data_dir, sample, "results", paste0(.x, ".csv.gz")), whitelist = Cells(so)
+                  ) %>% 
       setNames(str_c(.x, "_", c("global", "local")))
   }) %>% bind_cols()
 
 so <- AddMetaData(so, resall)
+```
+
+```{r universal}
+sample_desc <- hash_data %>% column_to_rownames("sample") %>% .[sample,]
+ids <- sample_desc$ids %>% str_split("_") %>% unlist()
+code1 <- sample_desc$code %>% str_replace("\\\\", "\\\\\\\\")
+
+rec <- so@meta.data %>%
+  select(type = sample_desc$id_col, ends_with("_local")) %>% 
+  pivot_longer(-type, names_to = "method", values_to = "id_hash") %>% 
+  mutate(id_hash := !!rlang::parse_quo(code1, env = rlang::caller_env())) %>% 
+  rename(true = type, pred = id_hash) %>%
+  group_by(method, true, pred) %>% 
+  summarize(n = n()) %>% 
+  mutate(correct = ifelse(true == pred, n, 0),
+         wrong_miss = ifelse(true != pred, n, 0)) %>% 
+  group_by(method, true) %>% 
+  summarize(recall = sum(correct)/(sum(correct) + sum(wrong_miss))) %>% 
+  rename(id = true) %>% 
+  mutate(method = str_remove(method, "_local")) %>% 
+  filter(id %in% ids)
+
+prec <- so@meta.data %>%
+  select(type = sample_desc$id_col, ends_with("_local")) %>% 
+  pivot_longer(-type, names_to = "method", values_to = "id_hash") %>% 
+  mutate(id_hash := !!rlang::parse_quo(code1, env = rlang::caller_env())) %>% 
+  rename(true = type, pred = id_hash) %>%
+  filter(true %in% ids) %>% 
+  group_by(method, true, pred) %>% 
+  summarize(n = n()) %>% 
+  mutate(correct = ifelse(true == pred, n, 0),
+         wrong_call = ifelse(true != pred, n, 0)) %>% 
+  group_by(method, pred) %>% 
+  summarize(precision = sum(correct)/(sum(correct) + sum(wrong_call))) %>% 
+  filter(!(pred %in% c("Doublet", "Negative"))) %>% 
+  rename(id = pred) %>% 
+  mutate(method = str_remove(method, "_local")) %>% 
+  filter(id %in% ids)
+
+f1 <- full_join(prec, rec, by = c("method", "id")) %>% 
+  replace_na(list(precision = 0, recall = 0)) %>%
+  mutate(F1 = 2*precision*recall/(precision+recall)) %>% 
+  group_by(method) %>% 
+  summarize(meanF1 = mean(F1)) %>% 
+  mutate(meanF1 = ifelse(is.nan(meanF1), 0, meanF1))
+
+type_ord <- so@meta.data %>% select(type, id = sample_desc$id_col) %>%
+  filter(id %in% ids) %>% 
+  pull(type) %>% 
+  table() %>% 
+  sort() %>%
+  names() %>%
+  rev() # %>% intersect(ids)
+
+df1 <- so@meta.data %>% 
+  select(type, contains("_global")) %>% 
+  pivot_longer(-type, names_to = "method", values_to = "global") %>% 
+  filter(!is.na(type)) %>% 
+  group_by(type, method, global) %>% 
+  summarise(n = n()) %>% 
+  group_by(type, method) %>% 
+  mutate(type = factor(type, levels = type_ord)) %>% 
+  mutate(global = factor(global, levels = c("Negative", "Doublet", "Singlet"))) %>% 
+  na.omit() %>% 
+  mutate(freq = n/sum(n)) %>% 
+  mutate(method = str_remove(method, "_global"))
+
+cv <- df1 %>% filter(global == "Singlet") %>% group_by(method) %>% summarise(cv = sd(freq)/mean(freq)) %>% 
+  mutate(cv_lab = str_c("cv=", sprintf("%.3f", round(cv, digits = 3)))) %>% 
+  full_join(f1, by = "method") %>% 
+  mutate(meanF1 = str_c("meanF1=", sprintf("%.3f", round(meanF1, digits = 3))))
+
+g1 <- ggplot(df1, aes(x = type, y = freq)) +
+  facet_grid(.~method) +
+  geom_col(colour="black", aes(fill = global)) +
+  theme_classic() +
+  ylab("Hash calling") +
+  theme(axis.title.x=element_blank()) +
+  theme(legend.title=element_blank()) + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  geom_text(data = cv, aes(x = 1, y = 1.025, label = cv_lab), hjust = 0, size = 3.5) +
+  geom_text(data = cv, aes(x = 1, y = 1.075, label = meanF1), hjust = 0, size = 3.5)
+
+ggsave(paste0(sample, "_celltype.pdf"), g1, width = 10, heigh = 5)
+```
+
+```{r}
 so$max_HTO <- matrixStats::colMaxs(so[["HTO"]]@counts %>% as.matrix())
 so$max_HTO_norm <- matrixStats::colMaxs(so[["HTO"]]@counts %>% as.matrix())/colSums(so[["HTO"]]@counts %>% as.matrix()) * 1000
 mat <- so[["HTO"]]@counts %>% as.matrix()
@@ -262,7 +342,7 @@ f1 <- full_join(prec, rec, by = c("method", "id")) %>%
   group_by(method) %>% 
   summarize(meanF1 = mean(F1))
 
-f1
+cv <- df1 %>% filter(global == "Singlet") %>% group_by(method) %>% summarise(cv = sd(freq)/mean(freq))
 ```
 
 ```{r p1}
