@@ -47,3 +47,12 @@ hash_data <- hash_data %>% rbind(
     code = "str_remove(id_hash, '[\\.-].+')"
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample = "2hash_orig",
+    id_col = "type",
+    ids = "line_pbmc",
+    code = ""
+  )
+)

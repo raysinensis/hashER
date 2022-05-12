@@ -14,14 +14,14 @@ run_HTODemux <- function(raw_counts = NULL,
     message("using ", length(whitelist), " cell ids")
   }
   if (!is.null(raw_counts)) {
-    
     counts <- data.table::fread(raw_counts) %>% column_to_rownames("V1")
   } else if (!is.null(filtered_counts)) {
     counts <- data.table::fread(filtered_counts) %>% column_to_rownames("V1")
   } else {
     stop("no counts specified")
   }
-  
+
+  message("HTO dims: ", paste0(dim(ccc), collapse = ","))
   # fill in missing cells
   if (!is.null(whitelist)) {
     emptys <- setdiff(whitelist, rownames(counts))
@@ -31,7 +31,10 @@ run_HTODemux <- function(raw_counts = NULL,
       colnames(empty_mat) <- colnames(counts)
       counts <- rbind(counts, empty_mat)
     }
+    ccc1 <<- counts
+    www <<- whitelist
     counts <- counts[whitelist, ]
+    ccc21 <<- counts
   }
 
     # remove low count drops first

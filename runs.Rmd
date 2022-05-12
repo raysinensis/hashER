@@ -2,20 +2,23 @@
 library(tidyverse)
 library(here)
 library(cowplot)
+library(Seurat)
 list.files("/nfs/home/rfu/projects/hashER/R/", full.names = TRUE) %>% map(., source)
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "A45k"
+sample <- "2hash_orig"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
 wl <- here(data_dir, sample, "barcodes.tsv.gz")
+
 ```
 
 ```{r run}
 run_HTODemux(
   raw_counts = rc,
   whitelist = wl,
-  out_name = here(data_dir, sample, "results/HTODemux.csv.gz")
+  out_name = here(data_dir, sample, "results/HTODemux.csv.gz"), 
+  threshold = 10
 )
 
 run_HTODemux_Libnorm(
@@ -40,7 +43,7 @@ run_HTODemux_Birch(
 
 run_demuxEM(
   raw_counts = rc,
-  raw_h5 = rh,
+  raw_h5 = rr,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/demuxEM.csv.gz")
 )
@@ -76,6 +79,9 @@ so <- AddMetaData(so, resall)
 sample_desc <- hash_data %>% column_to_rownames("sample") %>% .[sample,]
 ids <- sample_desc$ids %>% str_split("_") %>% unlist()
 code1 <- sample_desc$code %>% str_replace("\\\\", "\\\\\\\\")
+if (code1 == "") {
+  code1 <- "id_hash"
+}
 
 rec <- so@meta.data %>%
   select(type = sample_desc$id_col, ends_with("_local")) %>% 
@@ -116,7 +122,8 @@ f1 <- full_join(prec, rec, by = c("method", "id")) %>%
   summarize(meanF1 = mean(F1)) %>% 
   mutate(meanF1 = ifelse(is.nan(meanF1), 0, meanF1))
 
-type_ord <- so@meta.data %>% select(type, id = sample_desc$id_col) %>%
+type_ord <- so@meta.data %>% mutate(id := !!as.name(sample_desc$id_col)) %>% 
+  select(type, id) %>%
   filter(id %in% ids) %>% 
   pull(type) %>% 
   table() %>% 

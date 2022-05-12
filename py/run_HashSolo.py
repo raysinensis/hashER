@@ -26,7 +26,10 @@ def main():
     
     hash = anndata.read_csv(hto_path)
     hash.obs = hash.to_df()
-    sce.pp.hashsolo(hash, hash.var_names.tolist())
+    if len(hash.var_names.tolist()) > 2:
+        sce.pp.hashsolo(hash, hash.var_names.tolist())
+    else: 
+        sce.pp.hashsolo(hash, hash.var_names.tolist(), number_of_noise_barcodes = 1)
     
     bc = pd.read_csv(whitelist_path, header = None)[0].tolist()
     if args.remove is not None:
