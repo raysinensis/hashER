@@ -5,7 +5,7 @@ library(cowplot)
 library(Seurat)
 list.files("/nfs/home/rfu/projects/hashER/R/", full.names = TRUE) %>% map(., source)
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "2hash_orig"
+sample <- "2hash_1"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
@@ -63,8 +63,8 @@ resall <- map(
   c(
     "HTODemux",
     "HTODemux_Libnorm",
-    "demuxEM"#,
-    #"HashSolo"
+    "demuxEM",
+    "HashSolo"
   ),
   function(.x) {
     parse_results(here(data_dir, sample, "results", paste0(.x, ".csv.gz")), whitelist = Cells(so)
@@ -76,7 +76,7 @@ so <- AddMetaData(so, resall)
 ```
 
 ```{r universal}
-sample_desc <- hash_data %>% column_to_rownames("sample") %>% .[sample,]
+sample_desc <- hash_data %>% filter(str_detect(sample, sample_id))
 ids <- sample_desc$ids %>% str_split("_") %>% unlist()
 code1 <- sample_desc$code %>% str_replace("\\\\", "\\\\\\\\")
 if (code1 == "") {

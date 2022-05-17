@@ -21,7 +21,7 @@ run_HTODemux <- function(raw_counts = NULL,
     stop("no counts specified")
   }
 
-  message("HTO dims: ", paste0(dim(ccc), collapse = ","))
+  message("HTO dims: ", paste0(dim(counts), collapse = ","))
   # fill in missing cells
   if (!is.null(whitelist)) {
     emptys <- setdiff(whitelist, rownames(counts))
@@ -31,10 +31,7 @@ run_HTODemux <- function(raw_counts = NULL,
       colnames(empty_mat) <- colnames(counts)
       counts <- rbind(counts, empty_mat)
     }
-    ccc1 <<- counts
-    www <<- whitelist
     counts <- counts[whitelist, ]
-    ccc21 <<- counts
   }
 
     # remove low count drops first
