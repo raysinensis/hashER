@@ -5,7 +5,7 @@ library(cowplot)
 library(Seurat)
 list.files("/nfs/home/rfu/projects/hashER/R/", full.names = TRUE) %>% map(., source)
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "hash18"
+sample <- "P1mc"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
@@ -123,7 +123,9 @@ f1 <- full_join(prec, rec, by = c("method", "id")) %>%
   replace_na(list(precision = 0, recall = 0)) %>%
   mutate(F1 = 2*precision*recall/(precision+recall)) %>% 
   group_by(method) %>% 
-  summarize(meanF1 = mean(F1)) %>% 
+  summarize(meanF1 = mean(F1),
+            precision = str_c(precision, collapse = ";"),
+            recall = str_c(recall, collapse = ";")) %>% 
   mutate(meanF1 = ifelse(is.nan(meanF1), 0, meanF1))
 
 type_ord <- so@meta.data %>% mutate(id := !!as.name(sample_desc$id_col)) %>% 
@@ -165,6 +167,7 @@ g1 <- ggplot(df1, aes(x = type, y = freq)) +
   geom_text(data = cv, aes(x = 1, y = 1.075, label = meanF1), hjust = 0, size = 3.5)
 
 ggsave(paste0(sample, "_celltype_consensus.pdf"), g1, width = 10, heigh = 5)
+write_csv(f1, paste0(sample, "_F1.csv"))
 ```
 
 ```{r}
@@ -393,7 +396,9 @@ prec <- so@meta.data %>%
 f1 <- full_join(prec, rec, by = c("method", "id")) %>% 
   mutate(F1 = 2*precision*recall/(precision+recall)) %>% 
   group_by(method) %>% 
-  summarize(meanF1 = mean(F1))
+  summarize(meanF1 = mean(F1), 
+            precision = str_c(precision, collapse = ";"),
+            recall = str_c(recall, collapse = ";"))
 
 cv <- df1 %>% filter(global == "Singlet") %>% group_by(method) %>% summarise(cv = sd(freq)/mean(freq))
 ```
