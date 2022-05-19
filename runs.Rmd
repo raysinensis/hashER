@@ -5,12 +5,12 @@ library(cowplot)
 library(Seurat)
 list.files("/nfs/home/rfu/projects/hashER/R/", full.names = TRUE) %>% map(., source)
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "2hash_1"
+sample <- "hash18"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
 wl <- here(data_dir, sample, "barcodes.tsv.gz")
-
+dir.create(here(data_dir, sample, "results"), showWarnings = FALSE)
 ```
 
 ```{r run}
@@ -43,7 +43,7 @@ run_HTODemux_Birch(
 
 run_demuxEM(
   raw_counts = rc,
-  raw_h5 = rr,
+  raw_h5 = rh,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/demuxEM.csv.gz")
 )
@@ -70,7 +70,11 @@ resall <- map(
     parse_results(here(data_dir, sample, "results", paste0(.x, ".csv.gz")), whitelist = Cells(so)
                   ) %>% 
       setNames(str_c(.x, "_", c("global", "local")))
-  }) %>% bind_cols()
+  }) %>% bind_cols() %>% 
+  mutate_at(.vars = vars(contains("_local")), .funs = function(.y) {str_replace_all(.y, "-", "_")})
+
+resall <- resall %>% find_consensus() %>% 
+  find_consensus(c("HTODemux_Libnorm_local", "demuxEM_local"), new_col = "HTO.EM")
 
 so <- AddMetaData(so, resall)
 ```
@@ -160,7 +164,7 @@ g1 <- ggplot(df1, aes(x = type, y = freq)) +
   geom_text(data = cv, aes(x = 1, y = 1.025, label = cv_lab), hjust = 0, size = 3.5) +
   geom_text(data = cv, aes(x = 1, y = 1.075, label = meanF1), hjust = 0, size = 3.5)
 
-ggsave(paste0(sample, "_celltype.pdf"), g1, width = 10, heigh = 5)
+ggsave(paste0(sample, "_celltype_consensus.pdf"), g1, width = 10, heigh = 5)
 ```
 
 ```{r}

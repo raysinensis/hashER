@@ -38,3 +38,12 @@ hash_data <- hash_data %>% rbind(
     code = ""
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "DRp70",
+    id_col = "seurat_clusters",
+    ids = "tag1_tag2_tag3_tag4_tag5_tag6_tag7_tag8",
+    code = ""
+  )
+)
