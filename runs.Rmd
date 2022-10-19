@@ -3,12 +3,13 @@ library(tidyverse)
 library(here)
 library(cowplot)
 library(Seurat)
-list.files("/nfs/home/rfu/projects/hashER/R/", full.names = TRUE) %>% map(., source)
+list.files("R/", full.names = TRUE) %>% map(., source)
+
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "dual"# "P1mc"
+sample <- "2hash_orig"# "P1mc"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
-#rr <- here(data_dir, sample, "RNA_counts.csv.gz")
+rr <- here(data_dir, sample, "RNA_counts.csv.gz")
 wl <- here(data_dir, sample, "barcodes.tsv.gz")
 dir.create(here(data_dir, sample, "results"), showWarnings = FALSE)
 ```
@@ -24,7 +25,7 @@ run_HTODemux(
 run_HTODemux_Libnorm(
   raw_counts = rc,
   whitelist = wl,
-  threshold = 5,
+  threshold = 10,
   out_name = here(data_dir, sample, "results/HTODemux_Libnorm.csv.gz")
 )
 
@@ -178,9 +179,38 @@ g1 <- ggplot(df1, aes(x = type, y = freq)) +
   geom_text(data = cv, aes(x = 1, y = 1.025, label = cv_lab), hjust = 0, size = 3.5) +
   geom_text(data = cv, aes(x = 1, y = 1.075, label = meanF1), hjust = 0, size = 3.5)
 
-ggsave(paste0(sample, "_celltype_consensus.pdf"), g1, width = 10, heigh = 5)
-write_csv(f1, paste0(sample, "_F1.csv"))
+ggsave(here(data_dir, sample, "results/celltype_consensus.pdf"), g1, width = 10, heigh = 5)
+write_csv(f1, here(data_dir, sample, "results/F1.csv"))
 ```
+# aggr
+```{r}
+samples <- c("amc", "P1mc", "P2a", "A17k", "A45k", "hash18", "2hash_orig")
+res <- map(samples, function(x) {
+  read_csv(here(data_dir, x, "results/F1.csv"))
+})
+names(res) <- samples
+res2 <- do.call(rbind, res) %>% 
+  rownames_to_column("sample") %>% 
+  mutate(sample = str_remove(sample, "\\..+")) %>% 
+  mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm"))) %>% 
+  na.omit()
+
+ggplot(res2, aes(x = method, y = meanF1, color = method, group = method)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(shape = sample), size = 3) +
+  scale_shape_manual(values=1:length(samples)) +
+  theme_classic()
+
+ggsave("F1sx6.pdf", height = 5, width = 8)
+```
+
+
+
+
+
+
+
+# background
 
 ```{r}
 so$max_HTO <- matrixStats::colMaxs(so[["HTO"]]@counts %>% as.matrix())

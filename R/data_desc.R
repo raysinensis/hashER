@@ -56,3 +56,12 @@ hash_data <- hash_data %>% rbind(
     code = ""
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "amc",
+    id_col = "region",
+    ids = "MC_A",
+    code = "str_remove(id_hash, '_.+')"
+  )
+)
