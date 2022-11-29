@@ -65,3 +65,39 @@ hash_data <- hash_data %>% rbind(
     code = "str_remove(id_hash, '_.+')"
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "asap",
+    id_col = "region",
+    ids = "MC_A",
+    code = "str_remove(id_hash, '_.+')"
+  )
+)
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "ag",
+    id_col = "orig.ident",
+    ids = "MC_A",
+    code = "str_remove(id_hash, '_.+')"
+  )
+)
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "Landau",
+    id_col = "orig.ident",
+    ids = "Landau-B1-P2-1_Landau-B1-P2-2_Landau-B1-P2-3_Landau-B1-P2-4",
+    code = ""
+  )
+)
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "SAU",
+    id_col = "freemuxlet_id",
+    ids = "pt025_pt507_pt620_pt695_pt940",
+    code = "str_sub(id_hash, 1, 5)"
+  )
+)

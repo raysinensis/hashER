@@ -5,7 +5,8 @@ run_HTODemux_Libnorm <- function(raw_counts = NULL,
                          threshold = 100,
                          norm_total = 10000,
                          out_name = "HTODemux.csv.gz",
-                         use_mod = FALSE) {
+                         use_mod = FALSE,
+                         use_margin = 0) {
   # get counts
   if (!is.null(whitelist)) {
     whitelist <- readr::read_lines(whitelist)
@@ -16,9 +17,11 @@ run_HTODemux_Libnorm <- function(raw_counts = NULL,
   }
   if (!is.null(raw_counts)) {
     
-    counts <- data.table::fread(raw_counts) %>% column_to_rownames("V1")
+    counts <- data.table::fread(raw_counts)
+    counts <- counts %>% column_to_rownames(colnames(counts)[1])
   } else if (!is.null(filtered_counts)) {
-    counts <- data.table::fread(filtered_counts) %>% column_to_rownames("V1")
+    counts <- data.table::fread(filtered_counts)
+    counts <- counts %>% column_to_rownames(colnames(counts)[1])
   } else {
     stop("no counts specified")
   }
@@ -53,6 +56,15 @@ run_HTODemux_Libnorm <- function(raw_counts = NULL,
     rownames_to_column("id") %>% 
     select(id, global = HTO_classification.global, local = hash.ID, 
            HTO_classification, HTO_maxID, HTO_secondID, HTO_margin)
+  
+  if (use_margin > 0) {
+    message("estimating by margin...")
+    HTO_results <- HTO_results %>% mutate(
+      local = ifelse((global == "Singlet") & (HTO_margin < use_margin), "Doublet", as.character(local)),
+      HTO_classification = ifelse((global == "Singlet") & (HTO_margin < use_margin), str_c(HTO_maxID, HTO_secondID, sep = "_"), as.character(HTO_classification)), 
+      global = ifelse((global == "Singlet") & (HTO_margin < use_margin), "Doublet", global))
+  }
+  
   if (length(negative_by_default) > 0) {
     HTO_neg <- data.frame(id = negative_by_default, 
                           global = "Negative", 
@@ -139,6 +151,15 @@ run_HTODemux_Libnorm_sub <- function(raw_counts = NULL,
     rownames_to_column("id") %>% 
     select(id, global = HTO_classification.global, local = hash.ID, 
            HTO_classification, HTO_maxID, HTO_secondID, HTO_margin)
+  
+  if (use_margin > 0) {
+    message("estimating by margin...")
+    HTO_results <- HTO_results %>% mutate(
+        local = ifelse((global == "Singlet") & (HTO_margin < use_margin), "Doublet", local),
+        HTO_classification = ifelse((global == "Singlet") & (HTO_margin < use_margin), str_c(HTO_maxID, HTO_secondID, sep = "_"), HTO_classification), 
+        global = ifelse((global == "Singlet") & (HTO_margin < use_margin), "Doublet", global))
+  }
+  
   if (length(negative_by_default) > 0) {
     HTO_neg <- data.frame(id = negative_by_default, 
                           global = "Negative", 

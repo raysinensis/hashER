@@ -14,9 +14,11 @@ run_HTODemux <- function(raw_counts = NULL,
     message("using ", length(whitelist), " cell ids")
   }
   if (!is.null(raw_counts)) {
-    counts <- data.table::fread(raw_counts) %>% column_to_rownames("V1")
+    counts <- data.table::fread(raw_counts)
+    counts <- counts %>% column_to_rownames(colnames(counts)[1])
   } else if (!is.null(filtered_counts)) {
-    counts <- data.table::fread(filtered_counts) %>% column_to_rownames("V1")
+    counts <- data.table::fread(filtered_counts)
+    counts <- counts %>% column_to_rownames(colnames(counts)[1])
   } else {
     stop("no counts specified")
   }

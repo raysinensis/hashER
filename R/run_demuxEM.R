@@ -15,7 +15,7 @@ run_demuxEM <- function(raw_counts = NULL,
     " -t ",
     thread)
   
-  if (!is.null(raw_h5)) {
+  if (!is.null(raw_h5) & file.exists(raw_h5)) {
     com1 <- paste0(
       com1,
       " -d ",

@@ -6,7 +6,7 @@ library(Seurat)
 list.files("R/", full.names = TRUE) %>% map(., source)
 
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_hashs/clean"
-sample <- "2hash_orig"# "P1mc"
+sample <- "SAUp1"# "P1mc"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
@@ -15,6 +15,14 @@ dir.create(here(data_dir, sample, "results"), showWarnings = FALSE)
 ```
 
 ```{r run}
+run_HTODemux_Libnorm(
+  raw_counts = rc,
+  whitelist = wl,
+  use_margin = 0.5,
+  out_name = here(data_dir, sample, "results/HTODemux_margin1.csv.gz"), 
+  threshold = 10
+)
+
 run_HTODemux(
   raw_counts = rc,
   whitelist = wl,
@@ -29,23 +37,10 @@ run_HTODemux_Libnorm(
   out_name = here(data_dir, sample, "results/HTODemux_Libnorm.csv.gz")
 )
 
-# run_HTODemux_Birch(
-#   raw_counts = rc,
-#   whitelist = wl,
-#   out_name = here(data_dir, sample, "results/HTODemux_GMM.csv.gz"),
-#   kfunc = "gmm"
-# )
-
-# run_HTODemux_Libnorm_sub(
-#   raw_counts = rc,
-#   whitelist = wl,
-#   out_name = here(data_dir, sample, "results/HTODemux_subnorm.csv.gz"),
-#   threshold = 5
-# )
-
 run_demuxEM(
   raw_counts = rc,
   raw_h5 = rh,
+  #raw_h5 = rr,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/demuxEM.csv.gz")
 )
@@ -60,29 +55,30 @@ run_HashSolo(
 
 ```{r so}
 so <- readRDS(here(data_dir, sample, "so.rds"))
-
+so_backup <- so
 resall <- map(
   c(
+    "HTODemux_margin1",
     "HTODemux",
     "HTODemux_Libnorm",
     "demuxEM",
     "HashSolo"
   ),
   function(.x) {
-    parse_results(here(data_dir, sample, "results", paste0(.x, ".csv.gz")), whitelist = Cells(so)
-                  ) %>% 
+    parse_results(here(data_dir, sample, "results", paste0(.x, ".csv.gz")), 
+                  whitelist = Cells(so)) %>% 
       setNames(str_c(.x, "_", c("global", "local")))
   }) %>% bind_cols() %>% 
   mutate_at(.vars = vars(contains("_local")), .funs = function(.y) {str_replace_all(.y, "-", "_")})
 
-resall <- resall %>% find_consensus() %>% 
-  find_consensus(c("HTODemux_Libnorm_local", "demuxEM_local"), new_col = "HTO.EM")
+# resall <- resall %>% find_consensus() %>% 
+#   find_consensus(c("HTODemux_Libnorm_local", "demuxEM_local"), new_col = "HTO.EM")
 
 so <- AddMetaData(so, resall)
 ```
 
 ```{r universal}
-sample_desc <- hash_data %>% filter(str_detect(sample, sample_id))
+sample_desc <- hash_data %>% filter(str_detect(sample, paste0("^", sample_id)))
 ids <- sample_desc$ids %>% str_split("_") %>% unlist()
 code1 <- sample_desc$code %>% str_replace("\\\\", "\\\\\\\\")
 if (code1 == "") {
@@ -184,7 +180,47 @@ write_csv(f1, here(data_dir, sample, "results/F1.csv"))
 ```
 # aggr
 ```{r}
-samples <- c("amc", "P1mc", "P2a", "A17k", "A45k", "hash18", "2hash_orig")
+samples <- c("amc", "P1mc", "P2a", "A17k", "A17k001", "A45k", "hash18", "2hash_orig")
+res <- map(samples, function(x) {
+  read_csv(here(data_dir, x, "results/F1.csv"))
+})
+# ns <- map(samples, function(x) {
+#   so <- readRDS(here(data_dir, x, "so.rds"))
+#   so$nCount_HTO
+# })
+names(res) <- samples
+res2 <- do.call(rbind, res) %>% 
+  rownames_to_column("sample") %>% 
+  mutate(sample = str_remove(sample, "\\..+")) %>% 
+  mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm"))) %>% 
+  na.omit()
+sigs <- map(levels(res2$method), function(x) {
+  t.test(res2 %>% filter(method == "HTODemux_Libnorm") %>% pull(meanF1),
+         res2 %>% filter(method == x) %>% pull(meanF1),
+         paired = T,
+         alternative = "greater")$p.value
+})
+names(sigs) <- levels(res2$method)
+sigs2 <- data.frame(sigs) %>%
+  t() %>% 
+  as.data.frame() %>% 
+  setNames("pval") %>% 
+  rownames_to_column("method") %>% 
+  mutate(pval = round(pval, digits = 3))
+g <- ggplot(res2, aes(x = method, y = meanF1, color = method, group = method)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_text(data = sigs2, aes(x = method, y = 1.1, label = pval)) +
+  geom_jitter(aes(shape = sample), size = 3) +
+  scale_shape_manual(values=1:length(samples)) +
+  theme_classic()
+
+ggsave("F1sx7.pdf", height = 5, width = 8)
+```
+
+# sub
+```{r}
+samples <- c("A17k", "A17k01", "A17k001", "A45k", "A45k01")#, "amc", "P1mc", "P2a", "A45k", "hash18", "2hash_orig")
+# f1
 res <- map(samples, function(x) {
   read_csv(here(data_dir, x, "results/F1.csv"))
 })
@@ -194,16 +230,26 @@ res2 <- do.call(rbind, res) %>%
   mutate(sample = str_remove(sample, "\\..+")) %>% 
   mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm"))) %>% 
   na.omit()
-
-ggplot(res2, aes(x = method, y = meanF1, color = method, group = method)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(aes(shape = sample), size = 3) +
-  scale_shape_manual(values=1:length(samples)) +
+# ncount
+ns <- map(samples, function(x) {
+  so <- readRDS(here(data_dir, x, "so.rds"))
+  counts <- data.table::fread(here(data_dir, x, "HTO_counts.csv.gz")) %>% 
+    filter(V1 %in% Cells(so)) %>% 
+    column_to_rownames("V1") %>% 
+    rowSums()
+})
+nsdf <- data.frame(
+  sample = samples,
+  ncounts = map(ns, function(x) median(x)) %>% unlist()
+)
+df <- res2 %>% left_join(nsdf)
+ggplot(df,# %>% filter(str_detect(method, "HTO")), 
+       aes(x = ncounts, y = meanF1, color = method)) +
+  geom_point() +
+  geom_line() +
   theme_classic()
-
-ggsave("F1sx6.pdf", height = 5, width = 8)
+# ggsave("F1vsNcounts_A1745k.pdf", height = 5, width = 5)
 ```
-
 
 
 
