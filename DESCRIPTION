@@ -1,0 +1,19 @@
+Package: hashER
+Title: Diagnosis and rescue of multiplexed sequencing data
+Version: 0.0.1
+Authors@R:c(
+    person("Rui", "Fu", , "raysinensis@gmail.com", role = c("aut", "cre")),
+    person("Heather", "Geiger", , "hmgeiger@nygenome.org", role = "aut"))
+Description: benchmarking of sc(n/multiome)RNA-seq hashing demultiplex tools for suboptimal data
+License: MIT + file LICENSE
+Depends:
+    R (>= 4.0)
+Imports:
+    data.table,
+    here,
+    tidyverse,
+    Seurat,
+    cowplot
+VignetteBuilder: 
+    knitr
+Encoding: UTF-8
