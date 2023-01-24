@@ -4,10 +4,8 @@ library(here)
 library(cowplot)
 library(Seurat)
 list.files("R/", full.names = TRUE) %>% map(., source)
-data_dir <- "/gpfs/commons/groups/compbio/projects/rf_projects/rf_hashs/clean"
-
-"amc", "P1mc", "P2a", "A17k", "A45k", "hash18", "2hash_orig", "TEImix"
-sample <- "TEImix"# "P1mc"
+data_dir <- ""
+sample <- "P1mc"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
@@ -19,13 +17,6 @@ dir.create(here(data_dir, sample, "results"), showWarnings = FALSE)
 ```
 
 ```{r run}
-# run_HTODemux_Libnorm(
-#   raw_counts = rc,
-#   whitelist = wl,
-#   use_margin = 0.5,
-#   out_name = here(data_dir, sample, "results/HTODemux_margin1.csv.gz"), 
-#   threshold = 10
-# )
 run_MULTIseqDemux(
   raw_counts = rc,
   whitelist = wl,
@@ -63,7 +54,7 @@ run_HashSolo(
 ```
 
 
-```{r so}
+```{r so_res}
 so <- readRDS(here(data_dir, sample, "so.rds"))
 so_backup <- so
 resall <- map(
@@ -86,9 +77,7 @@ resall <- map(
 #   find_consensus(c("HTODemux_Libnorm_local", "demuxEM_local"), new_col = "HTO.EM")
 
 so <- AddMetaData(so, resall)
-```
 
-```{r universal}
 sample_desc <- hash_data %>% filter(str_detect(sample, paste0("^", sample_id)))
 ids <- sample_desc$ids %>% str_split("_") %>% unlist()
 code1 <- sample_desc$code %>% str_replace("\\\\", "\\\\\\\\")
@@ -189,7 +178,9 @@ g1 <- ggplot(df1, aes(x = type, y = freq)) +
 ggsave(here(data_dir, sample, "results/celltype_consensus.pdf"), g1, width = 10, heigh = 5)
 write_csv(f1, here(data_dir, sample, "results/F1.csv"))
 ```
-# aggr
+
+# aggregate results
+
 ```{r}
 samples <- c("amc", "P1mc", "P2a", "A17k", "A45k", "hash18", "2hash_orig", "TEImix", "bench_CMO_nuclei", "bench_TotalSeqC_cells", "bench_LMO_MULTseq_cells", "bench_LMO_custom_cells")
 res <- map(samples, function(x) {
@@ -203,7 +194,7 @@ names(res) <- samples
 res2 <- do.call(rbind, res) %>% 
   rownames_to_column("sample") %>% 
   mutate(sample = str_remove(sample, "\\..+")) %>% 
-  mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm", "MULTISeqDemux"))) %>% 
+  mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm", "MULTIseqDemux"))) %>% 
   na.omit()
 sigs <- map(levels(res2$method), function(x) {
   t.test(res2 %>% filter(method == "HTODemux_Libnorm") %>% pull(meanF1),
@@ -225,279 +216,5 @@ g <- ggplot(res2, aes(x = method, y = meanF1, color = method, group = method)) +
   scale_shape_manual(values=1:length(samples)) +
   theme_classic()
 
-ggsave("F1sx11.pdf", height = 5, width = 8)
-```
-
-# sub
-```{r}
-samples <- c("A17k", "A17k01", "A17k001", "A45k", "A45k01")#, "amc", "P1mc", "P2a", "A45k", "hash18", "2hash_orig")
-# f1
-res <- map(samples, function(x) {
-  read_csv(here(data_dir, x, "results/F1.csv"))
-})
-names(res) <- samples
-res2 <- do.call(rbind, res) %>% 
-  rownames_to_column("sample") %>% 
-  mutate(sample = str_remove(sample, "\\..+")) %>% 
-  mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm"))) %>% 
-  na.omit()
-# ncount
-ns <- map(samples, function(x) {
-  so <- readRDS(here(data_dir, x, "so.rds"))
-  counts <- data.table::fread(here(data_dir, x, "HTO_counts.csv.gz")) %>% 
-    filter(V1 %in% Cells(so)) %>% 
-    column_to_rownames("V1") %>% 
-    rowSums()
-})
-nsdf <- data.frame(
-  sample = samples,
-  ncounts = map(ns, function(x) median(x)) %>% unlist()
-)
-df <- res2 %>% left_join(nsdf)
-ggplot(df,# %>% filter(str_detect(method, "HTO")), 
-       aes(x = ncounts, y = meanF1, color = method)) +
-  geom_point() +
-  geom_line() +
-  theme_classic()
-# ggsave("F1vsNcounts_A1745k.pdf", height = 5, width = 5)
-```
-
-
-
-
-
-
-# background
-
-```{r}
-so$max_HTO <- matrixStats::colMaxs(so[["HTO"]]@counts %>% as.matrix())
-so$max_HTO_norm <- matrixStats::colMaxs(so[["HTO"]]@counts %>% as.matrix())/colSums(so[["HTO"]]@counts %>% as.matrix()) * 1000
-mat <- so[["HTO"]]@counts %>% as.matrix()
-c2 <- matrixStats::rowMaxs(replace(t(mat), t(rbind(1:ncol(mat), max.col(t(mat)))), -Inf))
-
-so$min_HTO <- matrixStats::colMins(so[["HTO"]]@counts %>% as.matrix())
-c2m <- matrixStats::rowMins(replace(t(mat), t(rbind(1:ncol(mat), max.col(t(mat)))), Inf))
-
-so$bg_HTO <- colSums(mat) - so$max_HTO - c2
-# so$bg_HTO <- so$min_HTO + c2m
-# counts_norm <- sweep(ccc,1,rowSums(ccc),FUN="/")
-# counts_norm <- round(counts_norm*1000)
-# so$max_HTO_normcor <- matrixStats::rowMaxs(counts_norm[Cells(so),])
-set.seed(35)
-df <- so@meta.data %>% 
-  filter(!is.na(HTODemux_global)) %>% 
-  filter(!is.na(type)) %>%
-  # filter(HTODemux_local != "4-3911-MC") %>% 
-  group_by(type) %>% 
-  filter(n() >= 450) %>%
-  sample_n(450) %>% 
-  mutate(HTODemux_global = factor(HTODemux_global, levels = c("Singlet", "Negative", "Doublet")),
-         HTODemux_Libnorm_global = factor(HTODemux_Libnorm_global, levels = c("Singlet", "Negative", "Doublet")))
-
-ns <- split(df$max_HTO, df$type)
-ps <- map(ns, function(x) {
-  ks.test(ns[[2]], x)$p.value
-}) %>% p.adjust() %>% 
-  as.data.frame() %>% 
-  setNames("pval") %>% 
-  mutate(sig = case_when(
-    pval > 0.05 ~ "insig",
-    pval > 0.01 ~ "*",
-    pval > 0.001~ "**",
-    T ~ "***"
-  )) %>% 
-  mutate(pval = formatC(pval, format = "e", digits = 1)) %>% 
-  rownames_to_column("type")
-  
-ns2 <- split(df$bg_HTO, df$type)
-ps2 <- map(ns2, function(x) {
-  ks.test(ns2[[2]], x)$p.value
-}) %>% p.adjust() %>% 
-  as.data.frame() %>% 
-  setNames("pval") %>% 
-  mutate(sig = case_when(
-    pval > 0.05 ~ "insig",
-    pval > 0.01 ~ "*",
-    pval > 0.001~ "**",
-    T ~ "***"
-  )) %>% 
-  mutate(pval = formatC(pval, format = "e", digits = 1)) %>% 
-  rownames_to_column("type")
-
-g <- ggplot(df,
-       aes(x = type, y = nCount_HTO, color = HTODemux_global)) +
-  ggbeeswarm::geom_quasirandom(size = 0.5, alpha = 0.5, shape = "circle") +
-  theme_classic() +
-  scale_y_continuous(limits = c(50, quantile(df$nCount_HTO, probs = 0.99))) +
-  colorblindr::scale_color_OkabeIto(order = c(3,1,7)) +
-  guides(color = guide_legend(title = "Demultiplex")) +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-
-# g2 <- ggplot(df,
-#        aes(x = type, y = nCount_HTO, color = HTODemux_Libnorm_global)) +
-#   ggbeeswarm::geom_quasirandom(size = 0.5, alpha = 0.5, shape = "circle") +
-#   theme_classic() +
-#   scale_y_continuous(limits = c(50, quantile(df$nCount_HTO, probs = 0.99))) +
-#   colorblindr::scale_color_OkabeIto(order = c(3,1,7)) +
-#   guides(color = guide_legend(title = "Demultiplex")) +
-#   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-
-g <- ggplot(df,
-       aes(x = type, y = max_HTO, color = HTODemux_global)) +
-  ggbeeswarm::geom_quasirandom(size = 0.5, alpha = 0.5, shape = "circle") +
-  geom_text(data = ps, aes(x = type, y = quantile(df$max_HTO, probs = 0.99), label = sig), color = "black") +
-  theme_classic() +
-  scale_y_continuous(limits = c(10, quantile(df$max_HTO, probs = 0.99))) +
-  colorblindr::scale_color_OkabeIto(order = c(3,1,7)) +
-  guides(color = guide_legend(title = "Demultiplex")) +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-
-g2 <- ggplot(df,
-       aes(x = type, y = bg_HTO, color = HTODemux_Libnorm_global)) +
-  ggbeeswarm::geom_quasirandom(size = 0.5, alpha = 0.5, shape = "circle") +
-  geom_text(data = ps2, aes(x = type, y = quantile(df$max_HTO, probs = 0.99), label = sig), color = "black") +
-  theme_classic() +
-  scale_y_continuous(limits = c(10, quantile(df$max_HTO, probs = 0.99))) +
-  colorblindr::scale_color_OkabeIto(order = c(3,1,7)) +
-  guides(color = guide_legend(title = "Demultiplex")) +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-# g3 <- ggplot(df,
-#        aes(x = type, y = max_HTO_normcor, color = HTODemux_Libnorm_global)) +
-#   ggbeeswarm::geom_quasirandom(size = 0.5, alpha = 0.5, shape = "circle") +
-#   theme_classic() +
-#   scale_y_continuous(limits = c(50, quantile(df$max_HTO, probs = 0.99))) +
-#   scale_color_OkabeIto(order = c(3,1,7)) +
-#   guides(color = guide_legend(title = "Demultiplex")) +
-#   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-
-l <- get_legend(g)
-p <- plot_grid(g + NoLegend(), g2 + NoLegend(), l, nrow = 1# , labels = c("HTODemux", "LibNorm"),  label_size = 10, label_fontface = "plain", label_x = 0.6, hjust = 0.5
-     )
-ggsave(paste0(sample, "_quasi_res_bg.pdf"), p, width = 8, height = 4)
-```
-
-```{r 123}
-rec <- so@meta.data %>%
-  select(sex_dmg, contains("_local")) %>% 
-  pivot_longer(-sex_dmg, names_to = "method", values_to = "id_hash") %>% 
-  #mutate(method = str_remove(method, "_.+")) %>% 
-  na.omit() %>% 
-  rename(true = sex_dmg, pred = id_hash) %>%
-  mutate(pred = str_sub(pred, 1, 1)) %>% 
-  filter(true %in% c("F", "M")) %>% 
-  group_by(method, true, pred) %>% 
-  summarize(n = n()) %>% 
-  mutate(correct = ifelse(true == pred, n, 0),
-         wrong_miss = ifelse(true != pred, n, 0)) %>% 
-  group_by(method, true) %>% 
-  summarize(recall = sum(correct)/(sum(correct) + sum(wrong_miss))) %>% 
-  rename(id = true)
-
-prec <- so@meta.data %>%
-  select(sex_dmg, contains("_local")) %>% 
-  pivot_longer(-sex_dmg, names_to = "method", values_to = "id_hash") %>% 
-  #mutate(method = str_remove(method, "_.+")) %>% 
-  na.omit() %>% 
-  rename(true = sex_dmg, pred = id_hash) %>%
-  mutate(pred = str_sub(pred, 1, 1)) %>% 
-  filter(true %in% c("F", "M")) %>% 
-  group_by(method, true, pred) %>% 
-  summarize(n = n()) %>% 
-  mutate(correct = ifelse(true == pred, n, 0),
-         wrong_call = ifelse(true != pred, n, 0)) %>% 
-  group_by(method, pred) %>% 
-  summarize(precision = sum(correct)/(sum(correct) + sum(wrong_call))) %>% 
-  filter(pred %in% c("M", "F")) %>% 
-  rename(id = pred)
-
-f1 <- full_join(prec, rec, by = c("method", "id")) %>% 
-  mutate(F1 = 2*precision*recall/(precision+recall)) %>% 
-  group_by(method) %>% 
-  summarize(meanF1 = mean(F1))
-```
-
-```{r 18}
-rec <- so@meta.data %>%
-  select(type, ends_with("_local")) %>% 
-  pivot_longer(-type, names_to = "method", values_to = "id_hash") %>% 
-  mutate(id_hash = str_remove(id_hash, "\\..+")) %>% 
-  #mutate(method = str_remove(method, "_.+")) %>% 
-  na.omit() %>% 
-  filter(type != "other") %>% 
-  rename(true = type, pred = id_hash) %>%
-  group_by(method, true, pred) %>% 
-  summarize(n = n()) %>% 
-  mutate(correct = ifelse(true == pred, n, 0),
-         wrong_miss = ifelse(true != pred, n, 0)) %>% 
-  group_by(method, true) %>% 
-  summarize(recall = sum(correct)/(sum(correct) + sum(wrong_miss))) %>% 
-  rename(id = true)
-
-prec <- so@meta.data %>%
-  select(type, ends_with("_local")) %>% 
-  pivot_longer(-type, names_to = "method", values_to = "id_hash") %>% 
-  mutate(id_hash = str_remove(id_hash, "\\..+")) %>% 
-  #mutate(method = str_remove(method, "_.+")) %>% 
-  na.omit() %>% 
-  filter(type != "other") %>% 
-  rename(true = type, pred = id_hash) %>%
-  group_by(method, true, pred) %>% 
-  summarize(n = n()) %>% 
-  mutate(correct = ifelse(true == pred, n, 0),
-         wrong_call = ifelse(true != pred, n, 0)) %>% 
-  group_by(method, pred) %>% 
-  summarize(precision = sum(correct)/(sum(correct) + sum(wrong_call))) %>% 
-  filter(!(pred %in% c("Doublet", "Negative"))) %>% 
-  rename(id = pred)
-
-f1 <- full_join(prec, rec, by = c("method", "id")) %>% 
-  mutate(F1 = 2*precision*recall/(precision+recall)) %>% 
-  group_by(method) %>% 
-  summarize(meanF1 = mean(F1))
-
-cv <- df1 %>% filter(global == "Singlet") %>% group_by(method) %>% summarise(cv = sd(freq)/mean(freq))
-```
-
-```{r p1}
-rec <- so@meta.data %>%
-  select(freemuxlet_id, contains("_local")) %>% 
-  pivot_longer(-freemuxlet_id, names_to = "method", values_to = "id_hash") %>% 
-  #mutate(method = str_remove(method, "_.+")) %>% 
-  na.omit() %>% 
-  filter(freemuxlet_id %in% c("3911", "9319")) %>% 
-  rename(true = freemuxlet_id, pred = id_hash) %>%
-  mutate(pred = str_sub(pred, 3, 6)) %>% 
-  group_by(method, true, pred) %>% 
-  summarize(n = n()) %>% 
-  mutate(correct = ifelse(true == pred, n, 0),
-         wrong_miss = ifelse(true != pred, n, 0)) %>% 
-  group_by(method, true) %>% 
-  summarize(recall = sum(correct)/(sum(correct) + sum(wrong_miss))) %>% 
-  rename(id = true)
-
-prec <- so@meta.data %>%
-  select(freemuxlet_id, contains("_local")) %>% 
-  pivot_longer(-freemuxlet_id, names_to = "method", values_to = "id_hash") %>% 
-  #mutate(method = str_remove(method, "_.+")) %>% 
-  na.omit() %>% 
-  filter(freemuxlet_id %in% c("3911", "9319")) %>% 
-  rename(true = freemuxlet_id, pred = id_hash) %>%
-  mutate(pred = str_sub(pred, 3, 6)) %>% 
-  group_by(method, true, pred) %>% 
-  summarize(n = n()) %>% 
-  mutate(correct = ifelse(true == pred, n, 0),
-         wrong_call = ifelse(true != pred, n, 0)) %>% 
-  group_by(method, pred) %>% 
-  summarize(precision = sum(correct)/(sum(correct) + sum(wrong_call))) %>% 
-  filter(pred %in% c("3911", "9319")) %>% 
-  rename(id = pred)
-
-f1 <- full_join(prec, rec, by = c("method", "id")) %>% 
-  mutate(F1 = 2*precision*recall/(precision+recall)) %>% 
-  group_by(method) %>% 
-  summarize(meanF1 = mean(F1), 
-            precision = str_c(precision, collapse = ";"),
-            recall = str_c(recall, collapse = ";"))
-
-cv <- df1 %>% filter(global == "Singlet") %>% group_by(method) %>% summarise(cv = sd(freq)/mean(freq))
+ggsave("F1s.pdf", height = 5, width = 8)
 ```
