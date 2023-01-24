@@ -101,3 +101,21 @@ hash_data <- hash_data %>% rbind(
     code = "str_sub(id_hash, 1, 5)"
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "TEI",
+    id_col = "sex_dmg",
+    ids = "F_M",
+    code = "str_sub(id_hash, 1, 1)"
+  )
+)
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "bench",
+    id_col = "cell",
+    ids = "MCF7_PC3_MDAMB231_DU145",
+    code = ""
+  )
+)
