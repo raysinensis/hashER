@@ -4,8 +4,9 @@ library(here)
 library(cowplot)
 library(Seurat)
 list.files("R/", full.names = TRUE) %>% map(., source)
-
 data_dir <- "/gpfs/commons/groups/compbio/projects/rf_projects/rf_hashs/clean"
+
+"amc", "P1mc", "P2a", "A17k", "A45k", "hash18", "2hash_orig", "TEImix"
 sample <- "TEImix"# "P1mc"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
@@ -13,7 +14,8 @@ rr <- here(data_dir, sample, "RNA_counts.csv.gz")
 wl <- here(data_dir, sample, "barcodes.tsv.gz")
 dir.create(here(data_dir, sample, "results"), showWarnings = FALSE)
 
-whitelist_rm = NULL
+#whitelist_rm = NULL
+#whitelist_rm = "-1"
 ```
 
 ```{r run}
@@ -24,21 +26,25 @@ whitelist_rm = NULL
 #   out_name = here(data_dir, sample, "results/HTODemux_margin1.csv.gz"), 
 #   threshold = 10
 # )
+run_MULTIseqDemux(
+  raw_counts = rc,
+  whitelist = wl,
+  out_name = here(data_dir, sample, "results/MULTIseqDemux.csv.gz"), 
+  threshold = 10#,whitelist_rm = whitelist_rm
+)
 
 run_HTODemux(
   raw_counts = rc,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/HTODemux.csv.gz"), 
-  threshold = 10,
-  whitelist_rm = whitelist_rm
+  threshold = 10#,whitelist_rm = whitelist_rm
 )
 
 run_HTODemux_Libnorm(
   raw_counts = rc,
   whitelist = wl,
   threshold = 10,
-  out_name = here(data_dir, sample, "results/HTODemux_Libnorm.csv.gz"),
-  whitelist_rm = whitelist_rm
+  out_name = here(data_dir, sample, "results/HTODemux_Libnorm.csv.gz")#,whitelist_rm = whitelist_rm
 )
 
 run_demuxEM(
@@ -46,15 +52,13 @@ run_demuxEM(
   #raw_h5 = rh,
   raw_h5 = rr,
   whitelist = wl,
-  out_name = here(data_dir, sample, "results/demuxEM.csv.gz"),
-  whitelist_rm = whitelist_rm
+  out_name = here(data_dir, sample, "results/demuxEM.csv.gz")#,whitelist_rm = whitelist_rm
 )
 
 run_HashSolo(
   raw_counts = rc,
   whitelist = wl,
-  out_name = here(data_dir, sample, "results/HashSolo.csv.gz"),
-  whitelist_rm = whitelist_rm
+  out_name = here(data_dir, sample, "results/HashSolo.csv.gz")#,whitelist_rm = whitelist_rm
 )
 ```
 
@@ -68,7 +72,8 @@ resall <- map(
     "HTODemux",
     "HTODemux_Libnorm",
     "demuxEM",
-    "HashSolo"
+    "HashSolo",
+    "MULTIseqDemux"
   ),
   function(.x) {
     parse_results(here(data_dir, sample, "results", paste0(.x, ".csv.gz")), 
@@ -186,7 +191,7 @@ write_csv(f1, here(data_dir, sample, "results/F1.csv"))
 ```
 # aggr
 ```{r}
-samples <- c("amc", "P1mc", "P2a", "A17k", "A45k", "hash18", "2hash_orig", "TEImix", "bench_CMO_nuclei")
+samples <- c("amc", "P1mc", "P2a", "A17k", "A45k", "hash18", "2hash_orig", "TEImix", "bench_CMO_nuclei", "bench_TotalSeqC_cells", "bench_LMO_MULTseq_cells", "bench_LMO_custom_cells")
 res <- map(samples, function(x) {
   read_csv(here(data_dir, x, "results/F1.csv"))
 })
@@ -198,7 +203,7 @@ names(res) <- samples
 res2 <- do.call(rbind, res) %>% 
   rownames_to_column("sample") %>% 
   mutate(sample = str_remove(sample, "\\..+")) %>% 
-  mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm"))) %>% 
+  mutate(method = factor(method, levels = c("HashSolo", "demuxEM", "HTODemux", "HTODemux_Libnorm", "MULTISeqDemux"))) %>% 
   na.omit()
 sigs <- map(levels(res2$method), function(x) {
   t.test(res2 %>% filter(method == "HTODemux_Libnorm") %>% pull(meanF1),
@@ -220,7 +225,7 @@ g <- ggplot(res2, aes(x = method, y = meanF1, color = method, group = method)) +
   scale_shape_manual(values=1:length(samples)) +
   theme_classic()
 
-ggsave("F1sx8.pdf", height = 5, width = 8)
+ggsave("F1sx11.pdf", height = 5, width = 8)
 ```
 
 # sub
