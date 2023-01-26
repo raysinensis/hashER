@@ -42,14 +42,10 @@ run_HTODemux_Libnorm <- function(raw_counts = NULL,
   negative_by_default <- rownames(counts)[rowSums(counts) < threshold]
   counts <- counts[rowSums(counts) >= threshold,]
   counts_norm <- sweep(counts,1,rowSums(counts),FUN="/")
-  counts_norm <- round(counts_norm*1000)
+  counts_norm <- round(counts_norm * norm_total)
   so <- Seurat::CreateSeuratObject(counts = t(as.matrix(counts_norm)), assay="HTO")
   so <- Seurat::NormalizeData(so, normalization.method = "CLR")
-  if (use_mod) {
-    so <- HTODemux_mod(so)
-  } else {
-    so <- Seurat::HTODemux(so)
-  }
+  so <- Seurat::HTODemux(so)
   
   # results out
   HTO_results <- so@meta.data %>% 
