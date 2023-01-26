@@ -126,8 +126,6 @@ run_HTODemux_Libnorm_sub <- function(raw_counts = NULL,
   back <- colMeans(counts_back)
   counts <- t(t(counts) - 5*back) %>% round()
   counts[counts < 0] <- 0
-  backs <<- back
-  ccc <<- counts
   
   # remove low count drops first
   negative_by_default <- rownames(counts)[rowSums(counts) < threshold]
@@ -177,4 +175,36 @@ run_HTODemux_Libnorm_sub <- function(raw_counts = NULL,
   HTO_results %>% rownames_to_column("id") %>% 
     readr::write_csv(out_name)
   HTO_results
+}
+
+HTODemux_Libnorm <- function(
+  object,
+  assay = "HTO",
+  positive.quantile = 0.99,
+  init = NULL,
+  nstarts = 100,
+  kfunc = "clara",
+  nsamples = 100,
+  seed = 42,
+  verbose = TRUE,
+  new_assay = "HTO_Libnorm",
+  norm_total = 10000
+) {
+  counts <- GetAssayData(object, assay = assay, slot = "counts")
+  counts_norm <- sweep(counts, 2, colSums(counts), FUN = "/")
+  counts_norm <- round(counts_norm * norm_total)
+  counts_norm[is.nan(counts_norm)] <- 0
+  object[[new_assay]] <- Seurat::CreateAssayObject(counts = counts_norm, assay = new_assay)
+  DefaultAssay(object) <- new_assay
+  object <- Seurat::NormalizeData(object, normalization.method = "CLR")
+  object <- Seurat::HTODemux(object,
+                             assay = new_assay,
+                             positive.quantile = positive.quantile,
+                             init = init,
+                             nstarts = nstarts,
+                             kfunc = kfunc,
+                             nsamples = nsamples,
+                             seed = seed,
+                             verbose = verbose)
+  return(object)
 }
