@@ -9,5 +9,11 @@ Your new hashing data has just been rushed to the emergency room. Visually, it's
 2. Summarize accuracy and other metrics, given ground truth and cell type info
 3. Generate basic QC for hashing data, and suggest appropriate demultiplexing tool
 
+# Non-optimal scenarios
+1. Limited sequencing depth
+2. Tag count distribution not bi-modal
+3. High background contamination from one tag
+4. Cell type bias for staining (and peak count)
+
 # Library Normalization add-on for `Seurat::HTODemux`
 We often observe a cell-type bias for hashtag (feature barcoding) quantification and demultiplex results. In brief, if certain cell types attach to the hashtags more readily than others (more surface targets, large size, etc), the peak intensities and thresholds for these cell types would naturally be different, which affects the threshold calling results of HTODemux. Adding a simple library size normalization to the default CLR transformation in our experience often helps improve demultiplex performance. This can be called with `run_HTODemux_Libnorm` from input files, and `HTODemux_Libnorm` for Seurat objects as input.
