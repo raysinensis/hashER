@@ -5,7 +5,7 @@ library(cowplot)
 library(Seurat)
 list.files("R/", full.names = TRUE) %>% map(., source)
 data_dir <- ""
-sample <- "P1mc"
+sample <- "Gau42k"
 rc <- here(data_dir, sample, "HTO_counts.csv.gz")
 rh <- here(data_dir, sample, "raw_feature_bc_matrix.h5")
 rr <- here(data_dir, sample, "RNA_counts.csv.gz")
@@ -40,8 +40,8 @@ run_HTODemux_Libnorm(
 
 run_demuxEM(
   raw_counts = rc,
-  #raw_h5 = rh,
-  raw_h5 = rr,
+  raw_h5 = rh,
+  #raw_h5 = rr,
   whitelist = wl,
   out_name = here(data_dir, sample, "results/demuxEM.csv.gz")#,whitelist_rm = whitelist_rm
 )
@@ -105,6 +105,7 @@ rec <- so@meta.data %>%
   summarize(n = n()) %>% 
   mutate(correct = ifelse(true == pred, n, 0),
          wrong_miss = ifelse(true != pred, n, 0)) %>% 
+  na.omit() %>% 
   group_by(method, true) %>% 
   summarize(recall = sum(correct)/(sum(correct) + sum(wrong_miss))) %>% 
   rename(id = true) %>% 
