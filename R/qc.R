@@ -74,3 +74,13 @@ test_typebias <- function(mat,
     return(sum(matrixStats::colMaxs(res2) / matrixStats::colMins(res2) >=5) / ncol(res2))
   }
 }
+
+get_saturation <- function(mat,
+                           logfile) {
+  nmol <- sum(mat)
+  if (str_to_lower(strsplit(basename(logfile), split="\\.")[[1]][-1]) == "json") {
+    # parse kite
+    nmap <- rjson::fromJSON(file = logfile)$n_pseudoaligned
+    return(1 - nmol/nmap)
+  }
+}
