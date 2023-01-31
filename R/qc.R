@@ -81,6 +81,24 @@ get_saturation <- function(mat,
   if (str_to_lower(strsplit(basename(logfile), split="\\.")[[1]][-1]) == "json") {
     # parse kite
     nmap <- rjson::fromJSON(file = logfile)$n_pseudoaligned
-    return(1 - nmol/nmap)
+  } else if (str_to_lower(strsplit(basename(logfile), split="\\.")[[1]][-1]) == "csv") {
+    # parse cellranger
+    nmap <- read_csv(logfile) %>%
+      filter(`Metric Name` == "Number of reads",
+             `Library Type` == "Multiplexing Capture", 
+             `Grouped By` == "Physical library ID") %>%
+      pull(`Metric Value`) %>% 
+      str_remove_all(",")
+  } else if (str_to_lower(strsplit(basename(logfile), split="\\.")[[1]][-1]) == c("fastq", "gz")) {
+    # parse fastq.gz
+    nlines <- 0
+    for (l1 in logfile) {
+      f <- gzfile(l1, open="rb")
+      while (length(chunk <- readBin(f, "raw", 65536)) > 0) {
+        nlines <- nlines + sum(chunk == as.raw(10L))
+      }
+    }
+    nmap <- nlines/4
   }
+  return(1 - nmol/as.numeric(nmap))
 }
