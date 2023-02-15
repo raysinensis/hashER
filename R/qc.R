@@ -83,12 +83,20 @@ get_saturation <- function(mat,
     nmap <- rjson::fromJSON(file = logfile)$n_pseudoaligned
   } else if (str_to_lower(strsplit(basename(logfile), split="\\.")[[1]][-1]) == "csv") {
     # parse cellranger
-    nmap <- read_csv(logfile) %>%
-      filter(`Metric Name` == "Number of reads",
-             `Library Type` == "Multiplexing Capture", 
-             `Grouped By` == "Physical library ID") %>%
-      pull(`Metric Value`) %>% 
-      str_remove_all(",")
+    # old version
+    
+    nmap <- tryCatch(
+      read_csv(logfile) %>%
+        filter(`Metric Name` == "Number of reads",
+               `Library Type` == "Multiplexing Capture", 
+               `Grouped By` == "Physical library ID") %>%
+        pull(`Metric Value`) %>% 
+        str_remove_all(","),
+      error = function(e) {
+        read_csv(logfile) %>%
+          pull(`Antibody: Number of Reads`)
+      }
+    )
   } else if (str_to_lower(strsplit(basename(logfile), split="\\.")[[1]][-1]) == c("fastq", "gz")) {
     # parse fastq.gz
     nlines <- 0
