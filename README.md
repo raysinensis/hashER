@@ -10,7 +10,7 @@ Some hashing data has just been rushed to the emergency room. It's clearly not d
 3. Generate basic QC for hashing data, and suggest appropriate demultiplexing tool
 
 # Non-optimal scenarios and assessment functions
-1. Limited sequencing depth - (`get_saturation`)
+1. Limited sequencing depth - (`test_lowreads`,`get_saturation`)
 2. Tag count distribution not bi-modal - (`test_bimodal`)
 3. High background contamination from one tag - (`test_background`)
 4. Cell type bias for staining and peak count - (`test_typebias`)
