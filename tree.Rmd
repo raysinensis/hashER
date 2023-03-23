@@ -1,0 +1,42 @@
+```{r}
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r}
+r1 <- res2
+r2 <- dfall3
+r <- r1 %>% select(sample, method, meanF1) %>% left_join(r2 %>% rownames_to_column("sample")) %>% select(-celltype_bias)
+saveRDS(r, "tidy_data.rds")
+r <- readRDS("tidy_data.rds") %>% 
+  filter(sample != "2hash_orig")
+r1 <- r %>% select(sample, method, meanF1) %>%
+  group_by(sample) %>% 
+  arrange(desc(meanF1), .by_group = T) %>% 
+  filter(!(method %in% c("HashSolo"))) %>% 
+  slice(1) %>% 
+  select(-meanF1) %>% 
+  ungroup()
+r2 <- r %>% select(1,4,5,6) %>% distinct() 
+r <- inner_join(r1, r2) %>% select(-sample) %>% 
+  #mutate(method = ifelse(method == "HTODemux_Libnorm", "yes", "no")) %>% 
+  mutate(method = factor(method))
+```
+
+```{r}
+tree_spec <- decision_tree(tree_depth = 4, min_n = 1) %>% 
+  set_mode("classification")
+tree_fit <- workflow() %>%
+  add_recipe(recipe(method ~ ., data = r)) %>% 
+  add_model(tree_spec) %>%
+  fit(r)
+
+# tree_fit %>%  
+#   extract_fit_engine() %>% 
+#   summary()
+
+pdf("tree_032323.pdf", width = 10, height = 4)
+rpart.plot::rpart.plot(tree_fit$fit$fit$fit, extra = 0)#, box.palette="Blues")
+dev.off()
+```
+

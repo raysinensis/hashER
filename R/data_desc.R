@@ -128,3 +128,12 @@ hash_data <- hash_data %>% rbind(
     code = "str_sub(id_hash, 1, 1)"
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "t23",
+    id_col = "sex_dmg",
+    ids = "F_M",
+    code = "str_sub(id_hash, 1, 1)"
+  )
+)
