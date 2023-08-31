@@ -216,3 +216,35 @@ read_mat <- function(raw_counts = NULL,
 gm_mean = function(x, na.rm=TRUE){
   exp(sum(log(x+1), na.rm=na.rm) / length(x)) - 1
 }
+
+test_all <- function(mat, types, sample_name) {
+  res_l <- test_lowreads(mat, return = "all")
+  if (res_l[[2]] == 1) {
+    thresh <- 5
+  } else {
+    thresh <- 1
+  }
+  
+  # test for background/signal peaks
+  res_m <- test_bimodal(mat, return = "all", threshold = thresh)
+  
+  # test for uneven background
+  res_b <- test_background(mat, return = "all", threshold = thresh)
+  
+  # test for celltype bias
+  res_t <- test_typebias(mat, type = types, return = "all")
+  
+  res_full <- list(res_m, res_b, res_t, res_l) %>% 
+    setNames(c("bimodal", "background", "typebias", "low"))
+  
+  dftemp <- data.frame(sample = sample_name, 
+                       mod = 1 - map(res_full[[1]][[1]], function(x) {
+                         x$p.value
+                       }) %>% unlist() %>% mean(),
+                       bg = res_full[[2]][[2]], 
+                       bias = res_full[[3]][[2]], 
+                       low = res_full[[4]][[2]]) %>% 
+    mutate(bg = ifelse(bg > 5, 1, bg/5))
+  
+  dftemp
+}
