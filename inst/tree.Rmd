@@ -1,0 +1,72 @@
+```{r}
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r}
+
+
+# r1 <- res2
+# r2 <- dfall3
+# r <- r1 %>% select(sample, method, meanF1) %>% left_join(r2 %>% rownames_to_column("sample")) %>% select(-celltype_bias)
+# saveRDS(r2, "tidy_data_cv.rds")
+r <- readRDS("tidy_data_cv.rds") %>% 
+  filter(sample != "2hash_orig")
+r1 <- r %>% select(sample, method, meanF1) %>%
+  group_by(sample) %>% 
+  filter(!(method %in% c("HashSolo", "MULTIseqDemux"))) %>% 
+  mutate(meanF1 = ifelse(meanF1/max(meanF1) >= 0.98, 1, 0)) %>% 
+  arrange(desc(meanF1), .by_group = T) %>% 
+  filter(meanF1 == 1) %>% 
+  # slice(1) %>% 
+  select(-meanF1) %>% 
+  arrange(method) %>% 
+  summarize(method = paste(method, collapse = "_or_")) %>% 
+  ungroup() %>% 
+  mutate(method = ifelse(str_detect(method, "demuxEM_or_"), str_replace(method, "demuxEM_or_", ""), method)) %>% 
+  #mutate(method = ifelse(str_detect(method, "HTODemux_Libnorm"), "HTODemux_Libnorm", method)) %>% 
+  # mutate(method = ifelse(method == "demuxEM_or_HTODemux_or_HTODemux_Libnorm", "any", method)) %>% 
+  mutate(method = ifelse(str_detect(method, "HTODemux_or_HTODemux_Libnorm"), "HTODemux", method)) #%>% 
+  #mutate(method = ifelse(str_detect(method, "demuxEM"), "demuxEM", method))
+r2 <- r %>% select(-c(method, meanF1)) %>% distinct() 
+r <- inner_join(r1, r2) %>% 
+  #select(-sample) %>% 
+  mutate(method = factor(method))
+r <- r %>% replace_na(list(type_var = 0.5))
+```
+
+```{r}
+# colnames(r) <- make.names(colnames(r))
+# dat_split <- initial_split(r, strata = method)
+# dat_train <- training(dat_split)
+# dat_test <- testing(dat_split)
+# dat_folds <- vfold_cv(r, v = 2, strata = sample)
+
+tree_spec <- decision_tree(
+  # cost_complexity = tune(),
+  # tree_depth = tune(),
+  # min_n = tune()) %>% 
+  tree_depth = 3, min_n = 2) %>% 
+  set_mode("classification")
+
+# tree_grid <- grid_regular(cost_complexity(), tree_depth(c(4,6)), min_n(c(1,2)), levels = 3)
+
+# tree_rs <- tune_grid(
+#   tree_spec,
+#   method ~ low_counts + bi_modal + uneven_background + type_var,
+#   resamples = dat_folds,
+#   grid = tree_grid
+# )
+# final_tree <- finalize_model(tree_spec, select_best(tree_rs))
+
+tree_fit <- workflow() %>%
+  add_recipe(recipe(method ~ low_counts + uneven_background + type_var + not_bimodal, data = r)) %>% 
+  #add_model(final_tree) %>%
+  add_model(tree_spec) %>%
+  fit(r)
+
+pdf("tree_091323.pdf", width = 10, height = 5)
+rpart.plot::rpart.plot(tree_fit$fit$fit$fit, extra = 100, type = 3)#, box.palette="Blues")
+dev.off()
+```
+

@@ -8,6 +8,7 @@ Some hashing data has just been rushed to the emergency room. It's clearly not d
 1. Iterate over different demultiplexing tools, given the same input files
 2. Summarize accuracy and other metrics, given ground truth and cell type info
 3. Generate basic QC for hashing data, and suggest appropriate demultiplexing tool
+4. Present a collection of real data with edge non-optimal cases and ground truth (freemuxlet genotyping, sex-specific gene expression, unique expression profiles, etc) for benchmarking
 
 # Non-optimal scenarios and assessment functions
 1. Limited sequencing depth - (`test_lowreads`,`get_saturation`)

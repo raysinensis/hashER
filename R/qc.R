@@ -73,6 +73,14 @@ test_typebias <- function(mat,
                           types,
                           return = "summary") {
   # mat <- mat[rowSums(mat) >= threshold, ]
+  if (length(unique(types)) == 1) {
+    if (return == "all") {
+      return(list(NA, NA))
+    }
+    else {
+      return(NA)
+    }
+  }
   cells <- split(rownames(mat), types)
   res <- map(cells, function(x) {
     temp <- mat[x,]
@@ -238,8 +246,9 @@ test_all <- function(mat, types, sample_name) {
   res_full <- list(res_m, res_b, res_t, res_l) %>% 
     setNames(c("bimodal", "background", "typebias", "low"))
   
+  # all scores from 0 to 1, higher is worse
   dftemp <- data.frame(sample = sample_name, 
-                       mod = 1 - map(res_full[[1]][[1]], function(x) {
+                       mod = map(res_full[[1]][[1]], function(x) {
                          x$p.value
                        }) %>% unlist() %>% mean(),
                        bg = res_full[[2]][[2]], 
