@@ -218,6 +218,7 @@ gm_mean = function(x, na.rm=TRUE){
 }
 
 test_all <- function(mat, types, sample_name) {
+  # test for low number of reads
   res_l <- test_lowreads(mat, return = "all")
   if (res_l[[2]] == 1) {
     thresh <- 5
@@ -244,7 +245,7 @@ test_all <- function(mat, types, sample_name) {
                        bg = res_full[[2]][[2]], 
                        bias = res_full[[3]][[2]], 
                        low = res_full[[4]][[2]]) %>% 
-    mutate(bg = ifelse(bg > 5, 1, bg/5))
+    mutate(bg = ifelse(bg > 5, 1, bg/(5 - 1) - 1/(5 - 1)))
   
-  dftemp
+  list(dftemp, res_full)
 }

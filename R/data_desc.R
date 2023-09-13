@@ -137,3 +137,21 @@ hash_data <- hash_data %>% rbind(
     code = "str_sub(id_hash, 1, 1)"
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "gut",
+    id_col = "exo",
+    ids = "G_t",
+    code = 'case_when(str_detect(id_hash, "tgt") & str_detect(id_hash, "GFP") ~ "D",str_detect(id_hash, "tdt") ~ "t",str_detect(id_hash, "GFP") ~ "G",T ~ "N")'
+  )
+)
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "endom",
+    id_col = "freemuxlet_id",
+    ids = "CZI05N_CZI06N_CZI09N_CZI11N",
+    code = 'case_when(id_hash == "tag11" ~ "CZI11N", id_hash == "tag3" ~ "CZI05N", id_hash == "tag5" ~ "CZI05N", id_hash == "tag6" ~ "CZI06N", id_hash == "tag9" ~ "CZI09N", T ~ id_hash)'
+  )
+)
