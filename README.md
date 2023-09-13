@@ -14,6 +14,7 @@ Some hashing data has just been rushed to the emergency room. It's clearly not d
 2. Tag count distribution not bi-modal - (`test_bimodal`)
 3. High background contamination from one tag - (`test_background`)
 4. Cell type bias for staining and peak count - (`test_typebias`)
+
 Overall wrapper `test_all`
 
 # Library Normalization add-on for `Seurat::HTODemux`
