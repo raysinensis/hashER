@@ -29,3 +29,4 @@ We often observe a cell-type bias for hashtag (feature barcoding) quantification
 
 ![benchmark+qc](https://user-images.githubusercontent.com/22802886/222261131-c2e57a79-791c-40ad-b401-4ff841307460.png)
 
+![random forest tree](https://user-images.githubusercontent.com/22802886/267799729-aabfe189-0c7e-424d-9344-1e1112c2d5a2.png)
