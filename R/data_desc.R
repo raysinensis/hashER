@@ -155,3 +155,12 @@ hash_data <- hash_data %>% rbind(
     code = 'case_when(id_hash == "tag11" ~ "CZI11N", id_hash == "tag3" ~ "CZI05N", id_hash == "tag5" ~ "CZI05N", id_hash == "tag6" ~ "CZI06N", id_hash == "tag9" ~ "CZI09N", T ~ id_hash)'
   )
 )
+
+hash_data <- hash_data %>% rbind(
+  data.frame(
+    sample_id = "GC",
+    id_col = "sex_dmg",
+    ids = "F_M",
+    code = "str_sub(id_hash, 1, 1)"
+  )
+)
